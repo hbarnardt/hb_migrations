@@ -252,12 +252,12 @@ func create(description string) error {
 	filename := fmt.Sprintf("%s_%s", time.Now().Format("20060102150405"), description)
 	funcName := strings.Replace(strings.Title(strings.Replace(filename, "_", " ", -1)), " ", "", -1)
 
-	err := createMigrationFile(filename, funcName)
+	filePath, err := createMigrationFile(filename, funcName)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("Created migration", filename)
+	fmt.Println("Created migration", filePath)
 	return nil
 }
 
@@ -351,19 +351,21 @@ func difference(a, b []string) []string {
 	return ab
 }
 
-func createMigrationFile(filename, funcName string) error {
+func createMigrationFile(filename, funcName string) (string, error) {
 	basepath, err := os.Getwd()
 	if err != nil {
-		return err
+		return "", err
 	}
 	filePath := path.Join(basepath, filename)
 
 	_, err = os.Stat(filePath)
 	if !os.IsNotExist(err) {
-		return fmt.Errorf("file=%q already exists (%s)", filename, err)
+		return "", fmt.Errorf("file=%q already exists (%s)", filename, err)
 	}
 
-	return ioutil.WriteFile(filePath+".go", []byte(fmt.Sprintf(migrationTemplate, filename, funcName, funcName, funcName, funcName)), 0644)
+	filePath += ".go"
+
+	return filePath, ioutil.WriteFile(filePath, []byte(fmt.Sprintf(migrationTemplate, filename, funcName, funcName, funcName, funcName)), 0644)
 }
 
 var migrationTemplate = `package main
@@ -382,10 +384,12 @@ func init() {
 }
 
 func up%s(db *pg.DB) error {
-	return nil
+	_, err := db.Exec(` + "`" + "`" + `)
+	return err
 }
 
 func down%s(db *pg.DB) error {
-	return nil
+	_, err := db.Exec(` + "`" + "`" + `)
+	return err
 }
 `
