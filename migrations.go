@@ -15,8 +15,8 @@ import (
 
 type migration struct {
 	Name string
-	Up   func(*pg.DB) error
-	Down func(*pg.DB) error
+	Up   func(*pg.Tx) error
+	Down func(*pg.Tx) error
 }
 
 var migrationTableName = "public.hb_migrations"
@@ -32,7 +32,7 @@ func SetInitialMigration(migrationName string) {
 	initialMigration = migrationName
 }
 
-func Register(name string, up, down func(*pg.DB) error) {
+func Register(name string, up, down func(*pg.Tx) error) {
 	migrationNames = append(migrationNames, name)
 
 	allMigrations[name] = migration{
@@ -93,12 +93,11 @@ func initialise(db *pg.DB) error {
 				m, ok := allMigrations[migration]
 
 				if !ok {
-					fmt.Println("FUCK", migration)
 					err = errors.New("Initial migration not found")
 					return
 				}
 
-				err = m.Up(db)
+				err = m.Up(tx)
 
 				if err != nil {
 					return
@@ -163,9 +162,10 @@ func migrate(db *pg.DB) error {
 			fmt.Printf("Batch %d run: %d migrations\n", batch, len(migrationsToRun))
 
 			for _, migration := range migrationsToRun {
-				err = allMigrations[migration].Up(db)
+				err = allMigrations[migration].Up(tx)
 
 				if err != nil {
+					err = errors.Wrapf(err, "%s failed to migrate", migration)
 					return
 				}
 
@@ -230,10 +230,11 @@ func rollback(db *pg.DB) error {
 			fmt.Printf("Batch %d rollback: %d migrations\n", batch, len(migrationsToRun))
 
 			for _, migration := range migrationsToRun {
-				err = allMigrations[migration].Down(db)
+				err = allMigrations[migration].Down(tx)
 
 				if err != nil {
-					return
+					err = errors.Wrapf(err, "%s failed to rollback", migration)
+					break
 				}
 
 				err = removeRolledbackMigration(tx, migration)
@@ -383,13 +384,13 @@ func init() {
 	)
 }
 
-func up%s(db *pg.DB) error {
-	_, err := db.Exec(` + "`" + "`" + `)
+func up%s(tx *pg.Tx) error {
+	_, err := tx.Exec(` + "`" + "`" + `)
 	return err
 }
 
-func down%s(db *pg.DB) error {
-	_, err := db.Exec(` + "`" + "`" + `)
+func down%s(tx *pg.Tx) error {
+	_, err := tx.Exec(` + "`" + "`" + `)
 	return err
 }
 `
