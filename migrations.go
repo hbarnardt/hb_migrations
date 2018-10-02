@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
@@ -19,8 +20,16 @@ type migration struct {
 	Down func(*pg.Tx) error
 }
 
+type MigrationNameConvention string
+
+const (
+	CamelCase MigrationNameConvention = "camelCase"
+	SnakeCase MigrationNameConvention = "snakeCase"
+)
+
 var migrationTableName = "public.hb_migrations"
 var initialMigration = "000000000000_init"
+var migrationNameConvention = SnakeCase
 var allMigrations = make(map[string]migration)
 var migrationNames []string
 
@@ -30,6 +39,10 @@ func SetMigrationTableName(tableName string) {
 
 func SetInitialMigration(migrationName string) {
 	initialMigration = migrationName
+}
+
+func SetMigrationNameConvention(convention MigrationNameConvention) {
+	migrationNameConvention = convention
 }
 
 func Register(name string, up, down func(*pg.Tx) error) {
@@ -249,9 +262,17 @@ func rollback(db *pg.DB) error {
 }
 
 func create(description string) error {
+	var filename, funcName string
 
-	filename := fmt.Sprintf("%s_%s", time.Now().Format("20060102150405"), description)
-	funcName := strings.Replace(strings.Title(strings.Replace(filename, "_", " ", -1)), " ", "", -1)
+	if migrationNameConvention == SnakeCase {
+		description = convertCamelCaseToSnakeCase(description)
+		filename = fmt.Sprintf("%s_%s", time.Now().Format("20060102150405"), description)
+		funcName = convertSnakeCaseToCamelCase(filename)
+	} else {
+		description = convertSnakeCaseToCamelCase(description)
+		filename = fmt.Sprintf("%s%s", time.Now().Format("20060102150405"), description)
+		funcName = filename
+	}
 
 	filePath, err := createMigrationFile(filename, funcName)
 	if err != nil {
@@ -350,6 +371,33 @@ func difference(a, b []string) []string {
 		}
 	}
 	return ab
+}
+
+func convertCamelCaseToSnakeCase(word string) (result string) {
+	l := 0
+	var fields []string
+	for s := word; s != ""; s = s[l:] {
+		l = strings.IndexFunc(s[1:], unicode.IsUpper) + 1
+		if l <= 0 {
+			l = len(s)
+		}
+		fields = append(fields, strings.ToLower(s[:l]))
+	}
+
+	result = strings.Join(fields, "_")
+
+	return
+}
+
+func convertSnakeCaseToCamelCase(word string) (result string) {
+	fields := strings.Split(word, "_")
+	for i := 0; i < len(fields); i++ {
+		fields[i] = strings.Title(fields[i])
+	}
+
+	result = strings.Join(fields, "")
+
+	return
 }
 
 func createMigrationFile(filename, funcName string) (string, error) {
