@@ -62,17 +62,17 @@ func usage() {
 
 Compile it:
 ```bash
-go build -i -o ./migrations/migrations $(GOFLAGS) ./migrations/*.go
+$> go build -i -o ./migrations/migrations ./migrations/*.go
 ```
 
 Run it:
 ```bash
-./migrations migrate
+$> ./migrations/migrations migrate
 ```
 
 ## Notes on generated file names
 ```bash
-./migrations create new_index
+$> ./migrations/migrations create new_index
 ```
 Creates a file in the `./migrations` folder called `20181031230738_new_index.go` with the following contents:
 
