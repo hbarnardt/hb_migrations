@@ -7,11 +7,12 @@
   - runs all available migrations that have not been run inside a batch
 - rollback 
   - reverts the last batch of migrations.
-- create <name>
+- create **name**
   - creates a migration file using the name provided.
 
 ## Usage
 Make a `main.go` in a `migrations` folder
+
 ```golang
 package main
 
@@ -58,3 +59,48 @@ func usage() {
 	os.Exit(2)
 }
 ```
+
+Compile it:
+```bash
+go build -i -o ./migrations/migrations $(GOFLAGS) ./migrations/*.go
+```
+
+Run it:
+```bash
+./migrations migrate
+```
+
+## Notes on generated file names
+```bash
+./migrations create new_index
+```
+Creates a file in the `./migrations` folder called `20181031230738_new_index.go` with the following contents:
+
+```golang
+package main
+
+import (
+	"github.com/go-pg/pg"
+	migrations "github.com/hbarnardt/hb_migrations"
+)
+
+func init() {
+	migrations.Register(
+		"20181031230738_new_index",
+		up20181031230738NewIndex,
+		down20181031230738NewIndex,
+	)
+}
+
+func up20181031230738NewIndex(tx *pg.Tx) error {
+	_, err := tx.Exec(``)
+	return err
+}
+
+func down20181031230738NewIndex(tx *pg.Tx) error {
+	_, err := tx.Exec(``)
+	return err
+}
+```
+
+Forward migration sql commands go in up and Rollback migrations sql commands go in down
