@@ -1,7 +1,17 @@
 # hb migrations - A Better migration engine for [go-pg/pg](https://github.com/go-pg/pg)
 
+## Basic Commands
+- init
+  - runs the specified intial migration as a batch on it's own.
+- migrate
+  - runs all available migrations that have not been run inside a batch
+- rollback 
+  - reverts the last batch of migrations.
+- create <name>
+  - creates a migration file using the name provided.
+
 ## Usage
-Make a main.go
+Make a `main.go` in a `migrations` folder
 ```golang
 package main
 
