@@ -1,7 +1,9 @@
 package migrations
 
 import (
+	"bytes"
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"os"
 	"path"
@@ -55,12 +57,7 @@ func Register(name string, up, down func(*pg.Tx) error) {
 	}
 }
 
-func Run(db *pg.DB, a ...string) error {
-	var cmd string
-	if len(a) > 0 {
-		cmd = a[0]
-	}
-
+func Run(db *pg.DB, cmd, name, template string) error {
 	switch cmd {
 	case "init":
 		return initialise(db)
@@ -69,10 +66,10 @@ func Run(db *pg.DB, a ...string) error {
 	case "rollback":
 		return rollback(db)
 	case "create":
-		if len(a) < 2 {
+		if len(name) == 0 {
 			return errors.New("Please enter migration description")
 		}
-		return create(strings.Join(a[1:], "_"))
+		return create(name, template)
 	default:
 		return errors.Errorf("unsupported command: %q", cmd)
 
@@ -261,7 +258,7 @@ func rollback(db *pg.DB) error {
 	})
 }
 
-func create(description string) error {
+func create(description, template string) error {
 	var filename, funcName string
 
 	if migrationNameConvention == SnakeCase {
@@ -274,7 +271,7 @@ func create(description string) error {
 		funcName = filename
 	}
 
-	filePath, err := createMigrationFile(filename, funcName)
+	filePath, err := createMigrationFile(filename, funcName, template)
 	if err != nil {
 		return err
 	}
@@ -400,7 +397,7 @@ func convertSnakeCaseToCamelCase(word string) (result string) {
 	return
 }
 
-func createMigrationFile(filename, funcName string) (string, error) {
+func createMigrationFile(filename, funcName, templateString string) (string, error) {
 	basepath, err := os.Getwd()
 	if err != nil {
 		return "", err
@@ -409,12 +406,30 @@ func createMigrationFile(filename, funcName string) (string, error) {
 
 	_, err = os.Stat(filePath)
 	if !os.IsNotExist(err) {
-		return "", fmt.Errorf("file=%q already exists (%s)", filename, err)
+		return "", fmt.Errorf("file=%s already exists (%v)", filename, err)
 	}
 
 	filePath += ".go"
 
-	return filePath, ioutil.WriteFile(filePath, []byte(fmt.Sprintf(migrationTemplate, filename, funcName, funcName, funcName, funcName)), 0644)
+	if len(templateString) == 0 {
+		templateString = migrationTemplate
+	}
+
+	data := map[string]interface{}{
+		"Filename": filename,
+		"FuncName": funcName,
+	}
+
+	t := template.Must(template.New("template").Parse(templateString))
+
+	buf := &bytes.Buffer{}
+	if err := t.Execute(buf, data); err != nil {
+		return "", fmt.Errorf("Failed to populate migration template %v", err)
+	}
+
+	templateString = buf.String()
+
+	return filePath, ioutil.WriteFile(filePath, []byte(templateString), 0644)
 }
 
 var migrationTemplate = `package main
@@ -426,18 +441,18 @@ import (
 
 func init() {
 	migrations.Register(
-		"%s",
-		up%s,
-		down%s,
+		"{{.Filename}}",
+		up{{.FuncName}},
+		down{{.FuncName}},
 	)
 }
 
-func up%s(tx *pg.Tx) error {
+func up{{.FuncName}}(tx *pg.Tx) error {
 	_, err := tx.Exec(` + "`" + "`" + `)
 	return err
 }
 
-func down%s(tx *pg.Tx) error {
+func down{{.FuncName}}(tx *pg.Tx) error {
 	_, err := tx.Exec(` + "`" + "`" + `)
 	return err
 }
