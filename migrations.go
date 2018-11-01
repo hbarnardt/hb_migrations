@@ -69,6 +69,9 @@ func Run(db *pg.DB, cmd, name, template string) error {
 		if len(name) == 0 {
 			return errors.New("Please enter migration description")
 		}
+
+		name = strings.Replace(name, " ", "_", -1)
+
 		return create(name, template)
 	default:
 		return errors.Errorf("unsupported command: %q", cmd)
