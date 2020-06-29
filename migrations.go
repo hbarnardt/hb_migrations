@@ -439,7 +439,7 @@ var migrationTemplate = `package main
 
 import (
 	"github.com/go-pg/pg"
-	migrations "github.com/hbarnardt/hb_migrations"
+	migrations "github.com/getkalido/hb_migrations"
 )
 
 func init() {
