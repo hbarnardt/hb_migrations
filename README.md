@@ -104,3 +104,4 @@ func down20181031230738NewIndex(tx *pg.Tx) error {
 ```
 
 Forward migration sql commands go in up and Rollback migrations sql commands go in down
+
