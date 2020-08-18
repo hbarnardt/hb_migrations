@@ -147,7 +147,7 @@ func migrate(db *pg.DB) error {
 		missingMigrations := difference(migrations, migrationNames)
 
 		if len(missingMigrations) > 0 {
-			return errors.New("Migrations table corrupt")
+			return errors.Errorf("Migrations table corrupt: %+v", missingMigrations)
 		}
 
 		migrationsToRun := difference(migrationNames, migrations)
