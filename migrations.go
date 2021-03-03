@@ -12,7 +12,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/v9"
 	"github.com/pkg/errors"
 )
 
