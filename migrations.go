@@ -531,7 +531,7 @@ func createMigrationFile(filename, funcName, templateString string) (string, err
 var migrationTemplate = `package main
 
 import (
-	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/v9"
 	migrations "github.com/getkalido/hb_migrations"
 )
 
