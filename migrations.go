@@ -2,6 +2,7 @@ package migrations
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"html/template"
 	"io/ioutil"
@@ -12,7 +13,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/go-pg/pg/v9"
+	"github.com/go-pg/pg/v10"
 	"github.com/pkg/errors"
 )
 
@@ -106,8 +107,7 @@ func Run(db *pg.DB, cmd string, options ...string) error {
 }
 
 func initialise(db *pg.DB) error {
-	return db.RunInTransaction(func(tx *pg.Tx) (err error) {
-
+	return db.RunInTransaction(context.TODO(), func(tx *pg.Tx) (err error) {
 		err = lockTable(tx)
 
 		if err != nil {
@@ -186,6 +186,7 @@ func migrateOneByOne(db *pg.DB) error {
 	var migrationsToRun []string
 
 	err := db.RunInTransaction(
+		context.TODO(),
 		func(tx *pg.Tx) (err error) {
 			err = lockTable(tx)
 			if err != nil {
@@ -206,6 +207,7 @@ func migrateOneByOne(db *pg.DB) error {
 
 	for _, migration := range migrationsToRun {
 		err := db.RunInTransaction(
+			context.TODO(),
 			func(tx *pg.Tx) (err error) {
 				err = lockTable(tx)
 				if err != nil {
@@ -240,7 +242,7 @@ func migrateOneByOne(db *pg.DB) error {
 }
 
 func migrateOneBatch(db *pg.DB) error {
-	return db.RunInTransaction(func(tx *pg.Tx) (err error) {
+	return db.RunInTransaction(context.TODO(), func(tx *pg.Tx) (err error) {
 
 		err = lockTable(tx)
 		if err != nil {
@@ -287,7 +289,7 @@ func migrateOneBatch(db *pg.DB) error {
 }
 
 func rollback(db *pg.DB) error {
-	return db.RunInTransaction(func(tx *pg.Tx) (err error) {
+	return db.RunInTransaction(context.TODO(), func(tx *pg.Tx) (err error) {
 
 		err = lockTable(tx)
 
@@ -385,18 +387,18 @@ func lockTable(tx *pg.Tx) error {
 				batch integer,
 				migration_time timestamptz
 			)
-		`, pg.Q(migrationTableName))
+		`, pg.Ident(migrationTableName))
 	if err != nil {
 		return err
 	}
-	_, err = tx.Exec("LOCK ? ", pg.Q(migrationTableName))
+	_, err = tx.Exec("LOCK ? ", pg.Ident(migrationTableName))
 
 	return err
 }
 
 func insertCompletedMigration(tx *pg.Tx, name string, batch int) error {
 	fmt.Printf("Completed %s\n", name)
-	_, err := tx.Exec("insert into ? (name, batch, migration_time) values (?, ?, now())", pg.Q(migrationTableName), name, batch)
+	_, err := tx.Exec("insert into ? (name, batch, migration_time) values (?, ?, now())", pg.Ident(migrationTableName), name, batch)
 
 	if err != nil {
 		return err
@@ -407,7 +409,7 @@ func insertCompletedMigration(tx *pg.Tx, name string, batch int) error {
 
 func removeRolledbackMigration(tx *pg.Tx, name string) error {
 	fmt.Printf("Rolledback %s\n", name)
-	_, err := tx.Exec("delete from ? where name = ?", pg.Q(migrationTableName), name)
+	_, err := tx.Exec("delete from ? where name = ?", pg.Ident(migrationTableName), name)
 
 	if err != nil {
 		return err
@@ -419,7 +421,7 @@ func removeRolledbackMigration(tx *pg.Tx, name string) error {
 func getCompletedMigrations(tx *pg.Tx) ([]string, error) {
 	var results []string
 
-	_, err := tx.Query(&results, "select name from ?", pg.Q(migrationTableName))
+	_, err := tx.Query(&results, "select name from ?", pg.Ident(migrationTableName))
 
 	if err != nil {
 		return nil, err
@@ -431,7 +433,7 @@ func getCompletedMigrations(tx *pg.Tx) ([]string, error) {
 func getMigrationsInBatch(tx *pg.Tx, batch int) ([]string, error) {
 	var results []string
 
-	_, err := tx.Query(&results, "select name from ? where batch = ? order by id desc", pg.Q(migrationTableName), batch)
+	_, err := tx.Query(&results, "select name from ? where batch = ? order by id desc", pg.Ident(migrationTableName), batch)
 
 	if err != nil {
 		return nil, err
@@ -443,7 +445,7 @@ func getMigrationsInBatch(tx *pg.Tx, batch int) ([]string, error) {
 func getBatchNumber(tx *pg.Tx) (int, error) {
 	var result int
 
-	_, err := tx.Query(&result, "select max(batch) from ?", pg.Q(migrationTableName))
+	_, err := tx.Query(pg.Scan(&result), "select max(batch) from ?", pg.Ident(migrationTableName))
 
 	if err != nil {
 		return 0, err
@@ -531,7 +533,7 @@ func createMigrationFile(filename, funcName, templateString string) (string, err
 var migrationTemplate = `package main
 
 import (
-	"github.com/go-pg/pg/v9"
+	"github.com/go-pg/pg/v10"
 	migrations "github.com/getkalido/hb_migrations"
 )
 

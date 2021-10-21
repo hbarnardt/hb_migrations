@@ -22,7 +22,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/v10"
 	migrations "github.com/hbarnardt/hb_migrations"
 )
 
@@ -80,7 +80,7 @@ Creates a file in the `./migrations` folder called `20181031230738_new_index.go`
 package main
 
 import (
-	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/v10"
 	migrations "github.com/hbarnardt/hb_migrations"
 )
 
